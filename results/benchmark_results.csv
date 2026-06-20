@@ -1,0 +1,7 @@
+version,repeat,elapsed_sec,peak_rss_mb,peak_gpu_memory_mb
+before,0,173.45428540708963,,
+after,0,190.42387051298283,,
+before,1,184.00963063898962,,
+after,1,207.73443633306306,,
+before,2,189.8363951119827,,
+after,2,212.17998610401992,,

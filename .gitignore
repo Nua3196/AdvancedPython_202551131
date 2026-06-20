@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints/
+
+# virtual environments
+.venv/
+venv/
+env/
+
+# external repositories
+sam3/
+external/sam3/
+
+# SAM3 / model checkpoints
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# generated outputs
+outputs/
+results/benchmark_outputs/
+*.log
+
+# keep benchmark result csv
+!results/benchmark_results.csv
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
