@@ -163,6 +163,7 @@ PyTorch CUDA wheel은 일반 PyPI가 아니라 PyTorch 전용 index에서 설치
 ```bash
 python -m pip install torch==2.7.0+cu126 torchvision torchaudio \
   --index-url https://download.pytorch.org/whl/cu126
+```
 
 ### 3.3 SAM3 설치
 
