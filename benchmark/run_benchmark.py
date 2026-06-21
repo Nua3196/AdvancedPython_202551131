@@ -347,19 +347,10 @@ def run_one_case(
         )
         monitor.start()
 
-        return_code = proc.wait()
-
-        monitor.stop()
-
-    monitor = ProcessTreeMonitor(
-        pid=proc.pid,
-        poll_interval=args.poll_interval,
-    )
-    monitor.start()
-
-    return_code = proc.wait()
-
-    monitor.stop()
+        try:
+            return_code = proc.wait()
+        finally:
+            monitor.stop()
 
     elapsed_sec = time.perf_counter() - start_time
 
