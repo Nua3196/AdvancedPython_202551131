@@ -158,6 +158,12 @@ conda env create -f environment.yml -n sam3_hw
 conda activate sam3_hw
 ```
 
+PyTorch CUDA wheel은 일반 PyPI가 아니라 PyTorch 전용 index에서 설치해야 하므로, `environment.yml` 생성 후 별도로 설치한다.
+
+```bash
+python -m pip install torch==2.7.0+cu126 torchvision torchaudio \
+  --index-url https://download.pytorch.org/whl/cu126
+
 ### 3.3 SAM3 설치
 
 본 프로젝트는 SAM3 원본 코드를 저장소에 포함하지 않는다.
