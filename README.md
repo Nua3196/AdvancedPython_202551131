@@ -122,7 +122,7 @@ input1_sam3__broccoli.mp4
 먼저 본 프로젝트 저장소를 clone한다.
 
 ```bash
-git clone <본_프로젝트_저장소_URL>
+git clone https://github.com/Nua3196/AdvancedPython_202551131.git
 cd HW
 ```
 
