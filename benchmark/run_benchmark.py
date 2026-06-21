@@ -14,11 +14,11 @@ before/after SAM3 batch script를 동일 조건으로 순차 실행하고,
 예시:
 python benchmark/run_benchmark.py \
   --before_script src/before/run_sam3_batch.py \
-  --after_script src/after/run_sam3_batch.py \
+  --after_script src/after/run_sam3_batch_after.py \
   --input_dir data/inputs \
   --results_csv results/benchmark_results.csv \
   --output_root results/benchmark_outputs \
-  --prompts "crab stick" "tomato" \
+  --prompts "broccoli" \
   --repeats 3 \
   --gpu_id 0
 """
