@@ -24,6 +24,11 @@
 │     └─ HD10/
 ├─ report/
 ├─ results/
+│  └─ HD10/
+│     ├─ benchmark_outputs/
+│     │  ├─ after/
+│     │  ├─ before/
+│     └─ benchmark_results.csv
 ├─ src/
 │  ├─ before/
 │  │  └─ run_sam3_batch.py
@@ -52,7 +57,7 @@ environment.yml
 - conda 가상환경 재현을 위한 실행 환경 파일이다.
 
 results/
-- 벤치마크 결과 CSV 및 실행 결과가 저장되는 폴더다.
+- 벤치마크 결과 CSV 및 실행 결과가 저장되는 폴더다. 하위의 HD10 폴더에는 실제 보고서 작성에 쓰인 실험 수행 결과 파일들이 존재한다.
 ```
 
 본 저장소에는 다음 항목을 포함하지 않는다.
