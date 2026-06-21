@@ -123,10 +123,10 @@ input1_sam3__broccoli.mp4
 
 ```bash
 git clone https://github.com/Nua3196/AdvancedPython_202551131.git
-cd HW
+cd AdvancedPython_202551131
 ```
 
-이후 명령은 기본적으로 본 프로젝트 폴더인 `HW`에서 실행한다.
+이후 명령은 기본적으로 본 프로젝트 폴더인 `AdvancedPython_202551131`에서 실행한다.
 
 ### 3.2 conda 가상환경 생성
 
@@ -167,7 +167,7 @@ conda activate sam3_hw
 
 ```text
 상위폴더/
-├─ HW/
+├─ AdvancedPython_202551131/
 └─ sam3/
 ```
 
@@ -195,7 +195,7 @@ pip install -e .
 설치가 완료되면 다시 본 프로젝트 폴더로 돌아온다.
 
 ```bash
-cd ../HW
+cd ../AdvancedPython_202551131
 ```
 
 ### 3.4 설치 확인
