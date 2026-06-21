@@ -9,18 +9,20 @@ before/after SAM3 batch script를 동일 조건으로 순차 실행하고,
 - repeat: 반복 번호
 - elapsed_sec: 전체 실행 시간
 - peak_rss_mb: 프로세스 트리 기준 CPU 메모리 peak RSS
+- peak_uss_mb: 프로세스 트리 기준 CPU 메모리 peak USS, 지원 OS에서만 측정
+- peak_system_memory_used_mb: 시스템 전체 used memory peak
+- peak_system_memory_percent: 시스템 전체 memory 사용률 peak
 - peak_gpu_memory_mb: nvidia-smi 기준 GPU memory peak
 
 예시:
 python benchmark/run_benchmark.py \
-  --before_script src/before/run_sam3_batch.py \
-  --after_script src/after/run_sam3_batch_after.py \
-  --input_dir data/inputs \
-  --results_csv results/benchmark_results.csv \
-  --output_root results/benchmark_outputs \
-  --prompts "broccoli" \
-  --repeats 3 \
-  --gpu_id 0
+    --before_script src/before/run_sam3_batch.py \
+    --after_script src/after/run_sam3_batch_after.py \
+    --input_dir data/inputs/FHD15 \
+    --results_csv results/FHD15/benchmark_results.csv \
+    --output_root results/FHD15/benchmark_outputs \
+    --prompts "broccoli" \
+    --repeats 3 --gpu_id 2
 """
 
 import argparse
@@ -33,7 +35,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 
 try:
@@ -54,6 +56,9 @@ class BenchmarkResult:
     repeat: int
     elapsed_sec: float
     peak_rss_mb: Optional[float]
+    peak_uss_mb: Optional[float]
+    peak_system_memory_used_mb: Optional[float]
+    peak_system_memory_percent: Optional[float]
     peak_gpu_memory_mb: Optional[float]
 
 
@@ -110,6 +115,19 @@ class ProcessTreeMonitor:
 
     peak_rss_mb:
         psutil 기준 parent + children RSS 합의 peak.
+        RSS는 공유 메모리까지 포함하므로 실제 고유 사용량보다 크게 보일 수 있음.
+
+    peak_uss_mb:
+        psutil memory_full_info().uss 기준 parent + children USS 합의 peak.
+        USS는 해당 프로세스가 종료되면 실제로 반환될 메모리에 가까운 값.
+        OS/권한에 따라 지원되지 않으면 None.
+
+    peak_system_memory_used_mb:
+        psutil.virtual_memory().used 기준 시스템 전체 used memory peak.
+        benchmark 대상 외 다른 프로세스의 영향도 포함됨.
+
+    peak_system_memory_percent:
+        psutil.virtual_memory().percent 기준 시스템 전체 memory 사용률 peak.
 
     peak_gpu_memory_mb:
         nvidia-smi query-compute-apps 기준 target process tree의 GPU memory 합 peak.
@@ -119,6 +137,9 @@ class ProcessTreeMonitor:
         self.pid = pid
         self.poll_interval = poll_interval
         self.peak_rss_mb: Optional[float] = None
+        self.peak_uss_mb: Optional[float] = None
+        self.peak_system_memory_used_mb: Optional[float] = None
+        self.peak_system_memory_percent: Optional[float] = None
         self.peak_gpu_memory_mb: Optional[float] = None
 
         self._stop_event = threading.Event()
@@ -140,6 +161,27 @@ class ProcessTreeMonitor:
                 if rss_mb is not None:
                     if self.peak_rss_mb is None or rss_mb > self.peak_rss_mb:
                         self.peak_rss_mb = rss_mb
+
+                uss_mb = self._get_process_tree_uss_mb(pids)
+                if uss_mb is not None:
+                    if self.peak_uss_mb is None or uss_mb > self.peak_uss_mb:
+                        self.peak_uss_mb = uss_mb
+
+                system_memory = self._get_system_memory_usage()
+                if system_memory is not None:
+                    used_mb, percent = system_memory
+
+                    if (
+                        self.peak_system_memory_used_mb is None
+                        or used_mb > self.peak_system_memory_used_mb
+                    ):
+                        self.peak_system_memory_used_mb = used_mb
+
+                    if (
+                        self.peak_system_memory_percent is None
+                        or percent > self.peak_system_memory_percent
+                    ):
+                        self.peak_system_memory_percent = percent
 
                 gpu_mb = self._get_gpu_memory_mb_for_pids(pids)
                 if gpu_mb is not None:
@@ -180,15 +222,60 @@ class ProcessTreeMonitor:
             return None
 
         total_bytes = 0
+        found = False
 
         for pid in pids:
             try:
                 proc = psutil.Process(pid)
                 total_bytes += proc.memory_info().rss
+                found = True
             except psutil.Error:
                 continue
 
-        return total_bytes / (1024 * 1024)
+        return total_bytes / (1024 * 1024) if found else None
+
+    def _get_process_tree_uss_mb(self, pids: List[int]) -> Optional[float]:
+        """
+        대상 process tree의 USS를 합산.
+
+        USS는 Unique Set Size로, 해당 프로세스에 고유하게 귀속된 CPU 메모리.
+        Linux/macOS/Windows에서 psutil이 지원하지만 일부 환경/권한에서는 없을 수 있음.
+        """
+        if not pids:
+            return None
+
+        total_bytes = 0
+        found = False
+
+        for pid in pids:
+            try:
+                proc = psutil.Process(pid)
+                full_info = proc.memory_full_info()
+                uss = getattr(full_info, "uss", None)
+
+                if uss is None:
+                    continue
+
+                total_bytes += uss
+                found = True
+            except (psutil.Error, AttributeError):
+                continue
+
+        return total_bytes / (1024 * 1024) if found else None
+
+    def _get_system_memory_usage(self) -> Optional[Tuple[float, float]]:
+        """
+        시스템 전체 CPU 메모리 사용량을 반환.
+
+        반환값:
+            (used_mb, percent)
+        """
+        try:
+            mem = psutil.virtual_memory()
+        except psutil.Error:
+            return None
+
+        return mem.used / (1024 * 1024), float(mem.percent)
 
     def _get_gpu_memory_mb_for_pids(self, pids: List[int]) -> Optional[float]:
         """
@@ -365,6 +452,9 @@ def run_one_case(
         repeat=repeat,
         elapsed_sec=elapsed_sec,
         peak_rss_mb=monitor.peak_rss_mb,
+        peak_uss_mb=monitor.peak_uss_mb,
+        peak_system_memory_used_mb=monitor.peak_system_memory_used_mb,
+        peak_system_memory_percent=monitor.peak_system_memory_percent,
         peak_gpu_memory_mb=monitor.peak_gpu_memory_mb,
     )
 
@@ -377,6 +467,9 @@ def save_results(results: List[BenchmarkResult], csv_path: Path) -> None:
         "repeat",
         "elapsed_sec",
         "peak_rss_mb",
+        "peak_uss_mb",
+        "peak_system_memory_used_mb",
+        "peak_system_memory_percent",
         "peak_gpu_memory_mb",
     ]
 
@@ -391,6 +484,9 @@ def save_results(results: List[BenchmarkResult], csv_path: Path) -> None:
                     "repeat": result.repeat,
                     "elapsed_sec": result.elapsed_sec,
                     "peak_rss_mb": result.peak_rss_mb,
+                    "peak_uss_mb": result.peak_uss_mb,
+                    "peak_system_memory_used_mb": result.peak_system_memory_used_mb,
+                    "peak_system_memory_percent": result.peak_system_memory_percent,
                     "peak_gpu_memory_mb": result.peak_gpu_memory_mb,
                 }
             )
@@ -427,6 +523,21 @@ def main() -> int:
                 if result.peak_rss_mb is not None
                 else "N/A"
             )
+            uss_text = (
+                f"{result.peak_uss_mb:.1f}MB"
+                if result.peak_uss_mb is not None
+                else "N/A"
+            )
+            system_memory_text = (
+                f"{result.peak_system_memory_used_mb:.1f}MB"
+                if result.peak_system_memory_used_mb is not None
+                else "N/A"
+            )
+            system_percent_text = (
+                f"{result.peak_system_memory_percent:.1f}%"
+                if result.peak_system_memory_percent is not None
+                else "N/A"
+            )
             gpu_text = (
                 f"{result.peak_gpu_memory_mb:.1f}MB"
                 if result.peak_gpu_memory_mb is not None
@@ -437,6 +548,9 @@ def main() -> int:
                 f"[DONE] {result.version} repeat={result.repeat} | "
                 f"time={result.elapsed_sec:.3f}s | "
                 f"rss_peak={rss_text} | "
+                f"uss_peak={uss_text} | "
+                f"system_memory_peak={system_memory_text} | "
+                f"system_memory_percent_peak={system_percent_text} | "
                 f"gpu_peak={gpu_text}"
             )
 

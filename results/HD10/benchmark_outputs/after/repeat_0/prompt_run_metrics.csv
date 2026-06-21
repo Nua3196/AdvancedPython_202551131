@@ -1,0 +1,5 @@
+video_name,prompt,output_path,status,elapsed_sec,peak_cpu_memory_mb,peak_cuda_memory_mb,error
+input1.mp4,broccoli,results/HD10/benchmark_outputs/after/repeat_0/input1_sam3__broccoli.mp4,done,444.5143969049677,22.971442222595215,12408.2421875,
+input2.mp4,broccoli,results/HD10/benchmark_outputs/after/repeat_0/input2_sam3__broccoli.mp4,done,516.7674953229725,17.223539352416992,15646.64892578125,
+input3.mp4,broccoli,results/HD10/benchmark_outputs/after/repeat_0/input3_sam3__broccoli.mp4,done,268.491597344866,15.692342758178711,9561.35205078125,
+input4.mp4,broccoli,results/HD10/benchmark_outputs/after/repeat_0/input4_sam3__broccoli.mp4,done,328.19859092403203,15.959665298461914,10727.94140625,
